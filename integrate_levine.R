@@ -25,12 +25,10 @@ source('levine_new/scripts/functions.R')
 #### performing integration ####
 
 # loading in the saved file
-sc_object <- readRDS('levine_new/final_meta_dataset.rds')
+sc_object <- readRDS('levine_new/levine_dataset/integrate2.rds')
 # set Default assay as RNA
-DefaultAssay(sc_object)<-'RNA'
-
-
-
+DefaultAssay(sc_object)<-'integrated'
+DimPlot(sc_object, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE, group.by = 'final_cluster_assignment')  + NoLegend()
 
 
 bs_object <- readRDS('raw_bs.rds')
@@ -81,9 +79,9 @@ sc_object <- subset(sc_object,
 
 bs_object<-NormalizeData(bs_object)
 bs_object<-FindVariableFeatures(bs_object, selection.method = "vst", nfeatures = 2000)
-
-sc_object<-NormalizeData(sc_object)
-sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
+# 
+# sc_object<-NormalizeData(sc_object)
+# sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
 
 
 # plotting the most variable genes 
@@ -112,6 +110,9 @@ p2<- LabelPoints(plot = plot2,
 p1+p2
 
 
+obj.list <- list()
+obj.list[["brainstem"]] <- bs_object
+obj.list[["spinal_cord"]] <- sc_object
 
 features <- SelectIntegrationFeatures(object.list = obj.list, nfeatures = 2000)
 

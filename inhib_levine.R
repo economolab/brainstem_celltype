@@ -20,7 +20,7 @@ setwd('Y:/PD/spinal_cord/')
 # on the outside drive
 setwd('U:/eng_research_economo/PD/spinal_cord')
 # Load in custom functions:
-source('levine_new/scripts/functions.R')
+source('levine_new/scripts/brainstem_celltype/functions.R')
 
 
 #### performing integration ####
@@ -28,7 +28,9 @@ source('levine_new/scripts/functions.R')
 # loading in the saved file
 
 sc_object <- readRDS('levine_new/inhib_sc.rds')
+DefaultAssay(sc_object)<-'raw'
 bs_object <- readRDS('levine_new/inhib_bs.rds')
+
 
 
 
@@ -68,8 +70,8 @@ obj.list[["spinal_cord"]] <- sc_object
 bs_object<-NormalizeData(bs_object)
 bs_object<-FindVariableFeatures(bs_object, selection.method = "vst", nfeatures = 2000)
 
-sc_object<-NormalizeData(sc_object)
-sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
+# sc_object<-NormalizeData(sc_object)
+# sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
 
 
 features <- SelectIntegrationFeatures(object.list = obj.list, nfeatures = 2000)
@@ -101,7 +103,7 @@ metadata.df$old.ident[is.na(metadata.df$old.ident)]<-"Spinalcord Cells"
 combined@meta.data<-metadata.df
 
 
-saveRDS(combined, file = 'levine_new/inhib_integrate1.rds')
+saveRDS(combined, file = 'levine_new/inhib_integrate1_raw.rds')
 
 
 combined_inhib<-combined
@@ -124,15 +126,14 @@ combined_inhib <- FindClusters(combined_inhib, resolution = 5)
 
 # Visualization
 
-p1 <- DimPlot(combined_inhib, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE) 
+p1 <- DimPlot(combined_inhib, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE, group.by = 'final_cluster_assignment') 
 p1
 
 
 
 
-saveRDS(combined_inhib, file = 'levine_new/inhib_integrate1_clustered.rds')
 # combining the metadata fields of predicted.id and Final.clusters so that one can use it 
-combined_inhib<-readRDS('levine_new/inhib_integrate1_clustered.rds')
+
 select.df<-combined_inhib@meta.data
 
 
@@ -148,5 +149,5 @@ for(i in 1:length(select.df$final_cluster_assignment)) {
 # put select.df back into object
 combined_inhib@meta.data<-select.df
 
-saveRDS(combined_inhib, file = 'levine_new/inhib_integrate1_clustered.rds')
-
+saveRDS(combined_inhib, file = 'levine_new/inhib_integrate1_clustered_raw.rds')
+combined_inhib1<-readRDS('levine_new/inhib_integrate1_clustered.rds')

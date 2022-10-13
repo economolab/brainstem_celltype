@@ -18,7 +18,7 @@ setwd('Y:/PD/spinal_cord/')
 # on the outside drive
 setwd('U:/eng_research_economo/PD/spinal_cord')
 # Load in custom functions:
-source('levine_new/scripts/functions.R')
+source('levine_new/scripts/brainstem_celltype/functions.R')
 
 ################################################################################
 # FIG b NEUROTRANSMITTER STATUS OF BRAINSTEM
@@ -169,7 +169,7 @@ hist(genes , breaks=200 , col='#3CB371' , border=F , main="", xlab="# Unique gen
 ################################################################################
 
 
-sc_object<-readRDS('levine_new/final_meta_dataset.rds')
+sc_neuron<-readRDS('levine_new/levine_dataset/integrate2.rds')
 
 
 
@@ -178,32 +178,7 @@ sc_object<-readRDS('levine_new/final_meta_dataset.rds')
 # sc_object@meta.data$Final.clusters<-gsub('-','.',sc_object@meta.data$Final.clusters)
 
 
-
-# only interested in neurons and motor neurons, so subset that data from the sc_object, look at the final_coarse_clusters
-
-sc_neuron<-subset(x = sc_object, subset = final_coarse_types %in% c("Neurons"))
-
-
-sc_neuron<-NormalizeData(sc_neuron)
-sc_neuron<-FindVariableFeatures(sc_neuron, selection.method = "vst", nfeatures = 4000)
-sc_neuron <- ScaleData(sc_neuron,  verbose = T)
-sc_neuron <- RunPCA(sc_neuron,verbose = T)
-
-sc_neuron <- FindNeighbors(sc_neuron, dims = 1:40) # Dimensions here specify the number of PCs to consider in the clustering
-sc_neuron <- FindClusters(sc_neuron, resolution = 3) # 1.5 # Resolution above 1 lets you break the data up into more communities
-
-# Generating umap/tsne
-
-sc_neuron <- RunUMAP(sc_neuron, dims = 1:2)#dims = 1:20) # Maybe make this number match the total number of clusters that come out of clustering
-# bs_object <- RunTSNE(bs_object, dims = 1:100, verbose = TRUE) #dims = 1:20)
-
-DimPlot(sc_neuron, reduction = 'umap', group.by = 'seurat_clusters', pt.size = 1.2, label = TRUE) 
-
-
-saveRDS(sc_neuron, 'sc_neuron.rds')
-sc_neuron<-readRDS('sc_neuron.rds')
-
-
+### Method 1 of labeling ####
 # splitting the clusters into excit, inhib, acetylcholine and non-neuronal 
 
 E_markers <- c('Slc17a7', 'Slc17a6')
@@ -262,14 +237,39 @@ colors.needed<-CustomColor(sc_neuron,seed = F, cluster.by = "type.label")
 
 
 
+
+
+
 p1<-DimPlot(sc_neuron, reduction = "umap", label = F, repel = TRUE,shuffle = TRUE,  group.by = "type.label", cols = c('#FFD700','#FF4500','#9370DB')) 
 p1
 
 
 
+#### Method 2 of labeling ####
 
 
+sc_neuron.meta<-sc_neuron@meta.data
 
+
+# adding your own labels to these cells 
+my.label<-c()
+for (i in 1:nrow(sc_neuron.meta)){
+  if(startsWith(as.character(sc_neuron.meta[i,'final_cluster_assignment']), 'Excit')){
+    my.label<-c(my.label,'Exc')
+  }
+  else if(startsWith(as.character(sc_neuron.meta[i,'final_cluster_assignment']), 'Inhib')){
+    my.label<-c(my.label,'Inh')
+  }
+  else{
+    my.label<-c(my.label, 'Ach')
+  }
+}
+sc_neuron.meta$my_labels<-my.label 
+sc_neuron[['my.label']]<-my.label
+
+
+p1<-DimPlot(sc_neuron, reduction = "umap", label = F, repel = TRUE,shuffle = TRUE,  group.by = "my.label", cols = c('#9370DB', '#FF4500','#FFD700'))
+p1
 
 ####### need to label the seurat_clusters based on the composition of the cell types. - like Exc, Inh, Ach #####
 # let us label the different types as Exc or Inh

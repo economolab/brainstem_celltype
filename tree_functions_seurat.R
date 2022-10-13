@@ -235,7 +235,7 @@ GetLeavesOnly<-function(object,tree, node){
     
     
   }
-  return(descendants -1)
+  return(descendants-1)
 }
 
 

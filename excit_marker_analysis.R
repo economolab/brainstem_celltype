@@ -11,401 +11,217 @@ library(future)
 library(gplots)
 library(ggplot2)
 library(Polychrome)
-
+library(formattable)
 
 # inside system
 setwd('D:/Presh/h5d_dataset/')
 # inside drive
-setwd('Y:/PD/spinal_cord/levine')
+setwd('Y:/PD/spinal_cord/')
 # on the outside drive
 setwd('U:/eng_research_economo/PD/spinal_cord/levine/')
 
 # load in functions file
 # inside drive
-source('Y:/PD/spinal_cord/levine/scripts/functions.R')
-# outside drive
-source('U:/eng_research_economo/PD/spinal_cord/scripts/functions.R')
+source('Y:/PD/spinal_cord/levine_new/scripts/brainstem_celltype/functions.R')
+
 
 
 # source the tree seurat functions
 # inside drive
-source('Y:/PD/spinal_cord/levine/scripts/tree_functions_seurat.R')
+source('Y:/PD/spinal_cord/levine_new/scripts/brainstem_celltype/tree_functions_seurat.R')
 
+
+get.markers<- function(node){
+  leaves<-GetLeavesOnly(combined_excit, tree, node)
+  leaves<-subset(tree.df, node %in% leaves, select = c('cluster'))$cluster
+  node.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
+                            ident.1 = leaves, 
+                            min.pct = 0.6,
+                            test.use = 'wilcox',
+                            min.diff.pct = 0.3, 
+                            only.pos = TRUE)
+  
+  
+  node.markers.top10table <- node.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
+  node.markers.top10<-rownames(node.markers.top10table)
+  return(node.markers.top10table)
+  
+}
+get.leaves.plot<-function(node){
+  leaves<-GetLeavesOnly(combined_excit, tree, node)
+  leaves<-subset(tree.df, node %in% leaves, select = c('cluster'))$cluster
+  # Highlight the cells of the cluster you're looking at 
+  cells.int<-WhichCells(combined_excit, idents = leaves)
+  return(cells.int)
+  
+}
 #########################################################################
 
 # Reading in the excit clustered dataset 
-combined_excit<-readRDS('method1/excit_integrate1_clustered.rds')
+combined_excit<-readRDS('levine_new/excit_integrate1_clustered.rds')
 
 combined_excit<-SetIdent(combined_excit, value = combined_excit[['seurat_clusters']])
+
+# get the majority Excit type present in each seurat cluster 
+df.meta<-subset(combined_excit@meta.data,select = c('final_cluster_assignment','seurat_clusters'))
+df.pct<-df.meta %>% group_by(seurat_clusters, final_cluster_assignment) %>%
+  summarise(cnt = n()) %>%
+  mutate(freq = formattable::percent(cnt / sum(cnt)))
+
+
+
+max2 <- df.pct %>%                                     
+  arrange(desc(freq)) %>% 
+  group_by(seurat_clusters) %>%
+  slice(1:2) %>% data.frame()
+
+new_label<-c()
+for (i in 0:((nrow(max2)-2)/2)){
+  subset.df<- subset(max2, seurat_clusters==i)
+  val<- as.numeric(subset.df$freq) > 0.8
+  if (unique(val) == FALSE){
+    types<-c(sub(".*-", "", subset.df$final_cluster_assignment[1]),  sub(".*-", "", subset.df$final_cluster_assignment[2]))
+    types<-types[order(as.numeric(types))]
+    types<-paste('Excit-',types, sep = '')
+    label<-paste(types[1], types[2], sep = '/')
+  }
+  else{
+    label<- subset.df$final_cluster_assignment[1]
+  }
+  new_label<-c(new_label, label)
+}
+
+label.table<-df.pct %>% group_by(seurat_clusters) %>% slice(which.max(freq)) %>% data.frame()
+label.table$final.labels<-new_label
+
+# renaming the seurat_clusters by the predominant type found 
+# create an empty vector to hold the values
+seurat_clust_type<-c()
+for (i in combined_excit@meta.data$seurat_clusters){
+  value<- as.character(subset(label.table, seurat_clusters == i, select = c('final.labels')))
+  seurat_clust_type<-c(seurat_clust_type,value)
+}
+
+# input the metdata field into the object
+combined_excit[['seurat_clust_type']]<- seurat_clust_type
+
+#set it as an active ident in the object
+combined_excit<-SetIdent(combined_excit, value = combined_excit[['seurat_clust_type']])
+
+# combined_excit<-SetIdent(combined_excit, value = combined_excit[['seurat_clusters']])
+
 ######### Hierarchial clustering #########
 combined_excit<-BuildClusterTree(combined_excit,assay="integrated", dims = 1:40)
 PlotClusterTree(combined_excit, direction = "downwards")
 
 tree <- Tool(combined_excit, slot = 'BuildClusterTree') # This extracts the phylo tree from our object
 
+tree.df<-data.frame(node=c(1:length(tree[['tip.label']])), cluster=tree[["tip.label"]])
 
-######### Group 1 -  node 66 - labels Excit 8,9,10 #########
-leaves<-GetLeavesOnly(combined_excit, tree, 66)
-node66.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-               ident.1 = leaves, 
-               min.pct = 0.6,
-               test.use = 'wilcox',
-               min.diff.pct = 0.3, 
-               only.pos = TRUE)
 
+######### Group 1 -  node 45  #########
 
-node66.markers.top10table <- node66.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node66.markers.top10<-rownames(node66.markers.top10table)
+top10markers.45<-get.markers(45)
 
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
+cells.int<-get.leaves.plot(45)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
 
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
 
-p2<-FeaturePlot(combined_excit, features = c('Reln', 'Pde11a', 'Prex2', '9530026P05Rik'), cols = c('lightgreen', 'red'), label = T)
-p1+p2
-
-
-
-######### Group 2 -  node 70 - labels Excit 17,18,19 #########
-leaves<-GetLeavesOnly(tree, 70)
-node70.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node70.markers.top10table <- node70.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node70.markers.top10<-rownames(node70.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Nmu','Tac2','Sox5'), cols = c('lightgreen', 'red'), label = T)
-p1+p2
-
-
-######### Group 3 -  node 74 - labels Excit 14,15,16 #########
-leaves<-GetLeavesOnly(combined_excit,tree, 74)
-node74.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node74.markers.top10table <- node74.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node74.markers.top10<-rownames(node74.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Lmo3','Grik1'), cols = c('lightgreen', 'red'), label = T, min.cutoff = 0)
-p1+p2
-
-
-
-######### Group 4 -  node 75 - labels Excit 11,12,13 #########
-leaves<-GetLeavesOnly(tree, 75)
-node75.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node75.markers.top10table <- node75.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node75.markers.top10<-rownames(node75.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Rreb1','Rgs6','Man1a'), cols = c('lightgreen', 'red'), label = T)
-p1+p2
-p2
-
-
-
-######### Group 5 -  node 64 - labels Excit 1 #########
-leaves<-GetLeavesOnly(combined_excit, tree, 64)
-node64.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node64.markers.top10table <- node64.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node64.markers.top10<-rownames(node64.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Cpne4','Bnc2','Dach2','Erbb4'), cols = c('lightgreen', 'red'), label = T)
-p1+p2
-p2
-
-
-
-######### Group 6 -  node 76 - labels Excit 4 #########
-leaves<-GetLeavesOnly(tree, 76)
-node76.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node76.markers.top10table <- node76.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node76.markers.top10<-rownames(node76.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Nts','Adamtsl1','Zfpm2','Col25a1'), cols = c('lightgreen', 'red'), label = T)
-p1+p2
-p2
-
-
-######### Group 7 -  node 77 - labels Excit 2,3 #########
-leaves<-GetLeavesOnly(tree, 77)
-node77.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node77.markers.top10table <- node77.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node77.markers.top10<-rownames(node77.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Cck','Prkcg'), cols = c('lightgreen', 'red'), label = T, min.cutoff = c(0))
-p1+p2
-p2
-
-
-######### Group 8 -  Node 72 - labels Excit 20 and many others #########
-leaves<-GetLeavesOnly(tree, 72)
-node72.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node72.markers.top10table <- node72.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node72.markers.top10<-rownames(node72.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Htr2c','Slit2','Meis2','Esrrg'), cols = c('lightgreen', 'red'), label = T, min.cutoff = c(0))
-p1+p2
-p2
-
-
-
-
-######### Group 9 -  Node 73 - labels Excit 5,6,7 #########
-leaves<-GetLeavesOnly(combined_excit,tree, 73)
-node73.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
-
-
-node73.markers.top10table <- node73.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node73.markers.top10<-rownames(node73.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Maf','Adarb2','Elmo1'), cols = c('lightgreen', 'red'), label = T, min.cutoff = c(0))
+p2<-FeaturePlot(combined_excit, features = c('Reln'), cols = c('lightgreen', 'red'), label = T, keep.scale = 'all')
 p1+p2
 
 
 
 
-######### Group 10 -  Node 68 - labels Excit 21,22 #########
-leaves<-GetLeavesOnly(tree, 68)
-node68.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
+######### Group 2 -  node 47  #########
+top10markers.47<-get.markers(47)
+
+cells.int<-get.leaves.plot(47)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
 
 
-node68.markers.top10table <- node68.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node68.markers.top10<-rownames(node68.markers.top10table)
-
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE,  cells.highlight = cells.int,group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = node68.markers.top10[1:5], cols = c('lightgreen', 'red'), label = T, min.cutoff = c(0))
+p2<-FeaturePlot(combined_excit, features = c('Cpne8','Syt10','Trhr'), cols = c('lightgreen', 'red'), label = T, keep.scale = 'all')
 p1+p2
-p2
 
 
 
-######### Group 11 -  Node 69 - labels Excit 25,  #########
-leaves<-GetLeavesOnly(tree, 69)
-node69.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                            ident.1 = leaves, 
-                            min.pct = 0.2, 
-                            logfc.threshold = 0.6,
-                            test.use = 'wilcox',
-                            min.diff.pct = 0.1, 
-                            only.pos = TRUE)
 
+######### Group 3 -  node 53  #########
+top10markers.53<-get.markers(53)
 
-node69.markers.top10table <- node69.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-node69.markers.top10<-rownames(node69.markers.top10table)
+cells.int<-get.leaves.plot(53)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
 
-# Comparison plot of all types 
-options(ggrepel.max.overlaps = 20)
-colors.needed<-CustomColor(combined_excit,cluster.by='Final.clusters', seed = T)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, group.by = 'Final.clusters', cols = colors.needed)
-p1
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = leaves)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE,  cells.highlight = cells.int,group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = c('Tcf4','Nfia'), cols = c('lightgreen', 'red'), label = T, min.cutoff = c(0))
+p2<-FeaturePlot(combined_excit, features = c('Nts'), cols = c('lightgreen', 'red'), label = T, keep.scale = 'all')
 p1+p2
-p2
 
 
+
+######### Group 4 -  node 57  #########
+top10markers.57<-get.markers(57)
+
+cells.int<-get.leaves.plot(57)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
+
+p2<-FeaturePlot(combined_excit, features = c('Trhde','Otof'), cols = c('lightgreen', 'red'), label = T)
+p1+p2
+
+
+######### Group 5 -  node 58  #########
+top10markers.58<-get.markers(58)
+
+cells.int<-get.leaves.plot(58)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
+
+p2<-FeaturePlot(combined_excit, features = c('Adarb2','Maf','Tox','Ryr3'), cols = c('lightgreen', 'red'), label = T)
+p1+p2
+
+
+
+######### Group 6 -  node 51  #########
+top10markers.51<-get.markers(51)
+
+cells.int<-get.leaves.plot(51)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
+
+p2<-FeaturePlot(combined_excit, features = c('Fbn2','Sox5','Cadps2'), cols = c('lightgreen', 'red'), label = T)
+p1+p2
+
+
+######### Group 7 -  node 55  #########
+top10markers.55<-get.markers(55)
+
+cells.int<-get.leaves.plot(55)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
+
+p2<-FeaturePlot(combined_excit, features = c('Zeb2','Slit2','Man1a', 'Rgs6','Gpc6'), cols = c('lightgreen', 'red'), label = F)
+p1+p2
+
+
+
+######### Group 8 -  node 56  #########
+top10markers.56<-get.markers(56)
+
+cells.int<-get.leaves.plot(56)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
+
+p2<-FeaturePlot(combined_excit, features = c('Htr2c','Meis2','Slit2'), cols = c('lightgreen', 'red'), label = T)
+p1+p2
+
+
+
+# try to split up node 56 
+# node 63
+top10markers.63<-get.markers(63)
+
+cells.int<-get.leaves.plot(63)
+p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
+
+p2<-FeaturePlot(combined_excit, features = c('Cntn5','Slit2'), cols = c('lightgreen', 'red'), label = T)
+p1+p2
 
 
 ################################################################################
-# Find markers for individual seurat clusters
-clust49.markers<-FindMarkers(combined_excit,          # no need of max cells ident, max is only 1000 in some types
-                             ident.1 = 49, 
-                             min.pct = 0.2, 
-                             logfc.threshold = 0.6,
-                             test.use = 'wilcox',
-                             min.diff.pct = 0.1, 
-                             only.pos = TRUE)
-
-clust49.markers.top10table <- clust49.markers %>% top_n(n = 10, wt = (avg_log2FC * (pct.1/pct.2)))
-clust49.markers.top10<-rownames(clust49.markers.top10table)
-
-
-
-# Highlight the cells of the cluster you're looking at 
-cells.int<-WhichCells(combined_excit, idents = 49)
-p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE,  cells.highlight = cells.int,group.by = 'Final.clusters') + NoLegend()
-p1
-
-p2<-FeaturePlot(combined_excit, features = clust49.markers.top10[1:4], cols = c('lightgreen', 'red'), label = T, min.cutoff = c(0))
-p1+p2
-p2
-
-
-
 ################################################################################
 # Final annotations of the cluster families 
 

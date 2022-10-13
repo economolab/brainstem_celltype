@@ -37,24 +37,24 @@ bs_object<-FindVariableFeatures(bs_object, selection.method = "vst", nfeatures =
 
 # load in reference dataset 
 reference.data<-readRDS('levine_new/final_meta_dataset.rds')
-DefaultAssay(reference.data)<-'RNA'
+DefaultAssay(reference.data)<-'integrated'
 
-reference.data<-NormalizeData(reference.data)
-reference.data<-FindVariableFeatures(reference.data, selection.method = "vst", nfeatures = 2000)
-reference.data <- ScaleData(reference.data, verbose = T)
-reference.data <- RunPCA(reference.data, features = features, verbose = T)
+# reference.data<-NormalizeData(reference.data)
+# reference.data<-FindVariableFeatures(reference.data, selection.method = "vst", nfeatures = 2000)
+# reference.data <- ScaleData(reference.data, verbose = T)
+# reference.data <- RunPCA(reference.data, verbose = T)
 
 ElbowPlot(reference.data, ndims = 50)
 
 # find integration anchors between the 2 datasets
 anchors <- FindTransferAnchors(reference = reference.data, query = bs_object,
-                                        dims = 1:30, reference.reduction = "pca")
+                                        dims = 1:25, reference.reduction = "pca")
 
 saveRDS(anchors,'levine_new/anchors_bs_pca.rds')
 anchors<-readRDS('levine_new/anchors_bs_pca.rds')
 
 predictions <- TransferData(anchorset = anchors, refdata = reference.data@meta.data$final_cluster_assignment,
-                            dims = 1:30)
+                            dims = 1:25)
 
 predicted.id<-predictions$predicted.id
 
@@ -65,15 +65,18 @@ bs_object[['predicted.id']]<-predicted.id
 # UNIMODAL UMAP PROJECTION #####
 
 # running UMAP on levine dataset
-ref <- RunUMAP(reference.data, dims = 1:30, reduction = "pca", return.model = TRUE)
+ref <- RunUMAP(reference.data, dims = 1:25, reduction = "pca", return.model = TRUE)
 
 anchors<-readRDS('levine_new/anchors_bs_pca.rds')
 
 combined<- MapQuery(anchorset = anchors, reference = ref, query = bs_object,
                       refdata = ref@meta.data$Final.clusters, reference.reduction = "pca", reduction.model = "umap")
 
+
+
+
 options(ggrepel.max.overlaps = Inf)
-p1 <- DimPlot(ref, reduction = "umap", group.by = "final_cluster_assignment", label = TRUE, label.size = 3.5,
+p1 <- DimPlot(ref, reduction = "umap", group.by = "final_coarse_types", label = TRUE, label.size = 3.5,
               repel = TRUE) + NoLegend() + ggtitle("Reference annotations")
 p2 <- DimPlot(combined, reduction = "ref.umap", group.by = "predicted.id", label = TRUE,
               label.size = 3.5, repel = TRUE) + NoLegend() + ggtitle("Query transferred labels")

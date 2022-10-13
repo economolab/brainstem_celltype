@@ -20,7 +20,7 @@ setwd('Y:/PD/spinal_cord/')
 # on the outside drive
 setwd('U:/eng_research_economo/PD/spinal_cord')
 # Load in custom functions:
-source('levine_new/scripts/functions.R')
+source('levine_new/scripts/brainstem_celltype/functions.R')
 
 
 
@@ -29,6 +29,7 @@ source('levine_new/scripts/functions.R')
 # loading in the saved file
 
 sc_object <- readRDS('levine_new/excit_sc.rds')
+DefaultAssay(sc_object)<-'raw'
 bs_object <- readRDS('levine_new/excit_bs.rds')
 
 
@@ -61,16 +62,18 @@ sc_object <- subset(sc_object,
                     #& nFeature_RNA < 5000
                     & percent.mt < 5)
 
+
+bs_object<-NormalizeData(bs_object)
+bs_object<-FindVariableFeatures(bs_object, selection.method = "vst", nfeatures = 2000)
+
+
 obj.list <- list()
 obj.list[["brainstem"]] <- bs_object
 obj.list[["spinal_cord"]] <- sc_object
 
 
-bs_object<-NormalizeData(bs_object)
-bs_object<-FindVariableFeatures(bs_object, selection.method = "vst", nfeatures = 2000)
-
-sc_object<-NormalizeData(sc_object)
-sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
+# sc_object<-NormalizeData(sc_object)
+# sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
 
 
 
@@ -82,6 +85,7 @@ obj.list <- lapply(X = obj.list, FUN = function(x) {
 })
 
 anchors <- FindIntegrationAnchors(object.list = obj.list, anchor.features = features, reduction ="rpca")
+
 
 combined <- IntegrateData(anchorset = anchors)
 DefaultAssay(combined) <- "integrated"
@@ -102,7 +106,7 @@ metadata.df$old.ident[is.na(metadata.df$old.ident)]<-"Spinalcord Cells"
 combined@meta.data<-metadata.df
 
 
-saveRDS(combined, file = 'levine_new/excit_integrate1.rds')
+saveRDS(combined, file = 'levine_new/excit_integrate1_raw.rds')
 
 
 combined_excit<-combined
@@ -110,7 +114,7 @@ combined_excit<-combined
 
 
 #### Run the standard workflow for visualization and clustering ####
-combined_excit<- readRDS('levine_new/excit_integrate1.rds')
+combined_excit<- readRDS('levine_new/excit_integrate1_raw.rds')
 
 DefaultAssay(combined_excit) <- "integrated"
 
@@ -131,10 +135,10 @@ p1
 
 
 
-saveRDS(combined_excit, file = 'levine_new/excit_integrate1_clustered.rds')
+
 
 # combining the metadata fields of predicted.id and Final.clusters so that one can use it 
-combined_excit<-readRDS('levine_new/excit_integrate1_clustered.rds')
+
 select.df<-combined_excit@meta.data
 
 
@@ -149,4 +153,12 @@ for(i in 1:length(select.df$final_cluster_assignment)) {
 # put select.df back into object
 combined_excit@meta.data<-select.df
 
-saveRDS(combined_excit, file = 'levine_new/excit_integrate1_clustered.rds')
+
+DimPlot(combined_excit, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE, group.by = 'final_cluster_assignment') 
+
+
+saveRDS(combined_excit, file = 'levine_new/excit_integrate1_clustered_raw.rds')
+
+combined_excit<-readRDS('levine_new/excit_integrate1_clustered_raw.rds')
+combined_excit1<-readRDS('levine_new/excit_integrate1_clustered.rds')
+
