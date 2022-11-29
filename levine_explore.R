@@ -12,16 +12,11 @@ library(gplots)
 library(ggplot2)
 library(Polychrome)
 
-# inside system
-setwd('D:/Presh/h5d_dataset/')
-# inside drive
+
 setwd('Y:/PD/spinal_cord/')
-# on the outside drive
-setwd('U:/eng_research_economo/PD/spinal_cord')
+
 # Load in custom functions:
 source('levine_new/scripts/functions.R')
-
-
 
 
 sc_object<-readRDS('levine_new/final_meta_dataset.rds')
@@ -78,7 +73,6 @@ p1 + NoLegend()
 
 
 ################################################################################
-combined<-readRDS('levine_new/levine_dataset/integrate2.rds')
-DefaultAssay(combined) <- "raw"
 
-FeaturePlot(combined, features = c('Sncg'), cols = c('lightgreen', 'red'), label = T)
+
+
