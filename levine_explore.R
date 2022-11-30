@@ -45,17 +45,18 @@ split.list <- lapply(X = split.list, FUN = function(x) {
   x <- RunPCA(x, features = features, verbose = T)
 })
 
+# perofrm this if you haven't 
+# rpca.anchors <- FindIntegrationAnchors(object.list = split.list, anchor.features = features, reduction ="rpca")
+# cca.anchors <- FindIntegrationAnchors(object.list = split.list, anchor.features = features, reduction ="cca")
+# saveRDS(rpca.anchors,'levine_new/rpca_anchors.rds')
+# saveRDS(cca.anchors,'levine_new/cca_anchors.rds')
 
-rpca.anchors <- FindIntegrationAnchors(object.list = split.list, anchor.features = features, reduction ="rpca")
-cca.anchors <- FindIntegrationAnchors(object.list = split.list, anchor.features = features, reduction ="cca")
-saveRDS(rpca.anchors,'levine_new/rpca_anchors.rds')
-saveRDS(cca.anchors,'levine_new/cca_anchors.rds')
 
+cca.anchors<- readRDS('levine_new/cca_anchors.rds')
 
 combined <- IntegrateData(anchorset = cca.anchors, k.weight = 80)
 DefaultAssay(combined) <- "integrated"
 
-saveRDS(combined,'levine_new/levine_dataset/integrate2.rds')
 
 combined <- ScaleData(combined, verbose = FALSE)
 combined <- RunPCA(combined, verbose = FALSE)
@@ -71,6 +72,8 @@ DefaultAssay(combined) <- "integrated"
 p1 <- DimPlot(combined, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE, group.by = 'final_cluster_assignment') 
 p1 + NoLegend()
 
+saveRDS(combined,'levine_new/levine_dataset/integrate2.rds')
+#saveRDS(combined,'D:/Presh/temp_storage/levine_new/integrate2.rds')
 
 ################################################################################
 
