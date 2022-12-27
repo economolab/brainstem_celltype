@@ -45,10 +45,8 @@ split.list <- lapply(X = split.list, FUN = function(x) {
   x <- RunPCA(x, features = features, verbose = T)
 })
 
-# perofrm this if you haven't 
-# rpca.anchors <- FindIntegrationAnchors(object.list = split.list, anchor.features = features, reduction ="rpca")
+# perform this if you haven't 
 # cca.anchors <- FindIntegrationAnchors(object.list = split.list, anchor.features = features, reduction ="cca")
-# saveRDS(rpca.anchors,'levine_new/rpca_anchors.rds')
 # saveRDS(cca.anchors,'levine_new/cca_anchors.rds')
 
 
@@ -73,7 +71,7 @@ p1 <- DimPlot(combined, reduction = "umap", repel = TRUE,shuffle = TRUE, label =
 p1 + NoLegend()
 
 saveRDS(combined,'levine_new/levine_dataset/integrate2.rds')
-#saveRDS(combined,'D:/Presh/temp_storage/levine_new/integrate2.rds')
+
 
 ################################################################################
 
