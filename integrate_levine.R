@@ -103,7 +103,7 @@ combined@meta.data<-metadata.df
 
 
 saveRDS(combined, file = 'levine_new/levine_integrate1.rds')
-#saveRDS(combined, 'D:/Presh/temp_storage/levine_new/levine_integrate1.rds')
+
 
 ############# Run the standard workflow for visualization and clustering #################
 
@@ -125,7 +125,6 @@ p1 <- DimPlot(combined, reduction = "umap", repel = TRUE,shuffle = TRUE, label =
 p1
 
 saveRDS(combined, file = 'levine_new/levine_integrate1_clustered.rds')
-#saveRDS(combined, file = 'D:/Presh/temp_storage/levine_new/levine_integrate1_clustered.rds')
 
 combined <- readRDS('levine_new/levine_integrate1_clustered.rds')
 
@@ -163,7 +162,6 @@ p1+p2
 
 
 saveRDS(refined, file = 'levine_new/levine_integrate1_clustered_thresh5.rds')
-#saveRDS(refined, file = 'D:/Presh/temp_storage/levine_new/levine_integrate1_clustered_thresh5.rds')
 
 #########################################################################
 
