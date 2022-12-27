@@ -44,7 +44,7 @@ ElbowPlot(reference.data, ndims = 50)
 
 # One can save these anchors for future use
 # saveRDS(anchors,'levine_new/anchors_bs_pca.rds')
-# saveRDS(anchors,'D:/Presh/temp_storage/levine_new/anchors_bs_pca.rds')
+
 
 # If already saved, one can read them in 
 anchors<-readRDS('levine_new/anchors_bs_pca.rds')
@@ -87,7 +87,6 @@ bs_object[['broad_type']]<-my.label
 
 # saving the brainstem labeled data 
 saveRDS(bs_object, 'levine_new/bs_levine_label_raw.rds')
-#saveRDS(bs_object, 'D:/Presh/temp_storage/levine_new/bs_levine_label_raw.rds')
 
 ############################### UNIMODAL UMAP PROJECTION ###########################
 
@@ -137,8 +136,6 @@ integrated@meta.data<-integrated.meta
 
 
 saveRDS(integrated, 'levine_new/integrated_levine_label.rds')
-#saveRDS(integrated, 'D:/Presh/temp_storage/levine_new/integrated_levine_label.rds')
-
 
 
 
@@ -172,9 +169,41 @@ for (i in 1:nrow(integrated.meta)){
 
 integrated[['broad_type']]<-my.label
 
-saveRDS(integrated, 'levine_new/integrated_levine_label_thresh5.rds')
-#saveRDS(integrated, 'D:/Presh/temp_storage/levine_new/integrated_levine_label_thresh5.rds')
 
+# adding in lamina and lineage info 
+lam_fam <- read.csv('Y:/PD/spinal_cord/levine_new/lamina_info_modified.csv', header = T)
+rownames(lam_fam) <-  lam_fam$Cluster
+
+laminae.meta.fam<-c()
+lineage.meta.fam<-c()
+for (i in integrated@meta.data$final_cluster_assignment){
+  
+  type<- i
+  if(type %in% lam_fam$Cluster){
+    lamina.info<- lam_fam[type,]$Family_lamina
+    laminae.meta.fam<-c(laminae.meta.fam,lamina.info)
+    lineage.info<- lam_fam[type,]$Family_Lineage
+    lineage.meta.fam<-c(lineage.meta.fam,lineage.info)
+    
+  }
+  else{
+    laminae.meta.fam<-c(laminae.meta.fam,'useless')
+    lineage.meta.fam<-c(lineage.meta.fam,'useless')
+  }
+}
+
+integrated[['Laminae_fam']]<-laminae.meta.fam
+integrated[['Lineage_fam']]<-lineage.meta.fam
+
+integrated<-subset(integrated, subset = Laminae_fam == 'useless', invert = TRUE)
+
+integrated@meta.data$Laminae_fam<-factor(integrated@meta.data$Laminae_fam, levels = c('1/2o','1/2o/2i','2/3','3','3/4','4','4/5','5','6','7','8','9','10'))
+
+
+
+
+
+saveRDS(integrated, 'levine_new/integrated_levine_label_thresh5.rds')
 
 
 ################################################################################
@@ -198,7 +227,7 @@ sc_object <- readRDS('levine_new/final_meta_dataset.rds')
 bs_object <- readRDS('levine_new/bs_levine_label_raw.rds')
 
 setwd('Y:/PD/spinal_cord/levine_new/')
-setwd('D:/Presh/temp_storage/levine_new')
+
 
 excit_sc <- sc_object[,E.cells.interested]
 saveRDS(excit_sc, file = "excit_sc.rds")
