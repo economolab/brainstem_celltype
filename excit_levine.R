@@ -13,24 +13,20 @@ library(ggplot2)
 library(Polychrome)
 
 
-# inside system
-setwd('D:/Presh/h5d_dataset/')
-# inside drive
-setwd('Y:/PD/spinal_cord/')
-# on the outside drive
-setwd('U:/eng_research_economo/PD/spinal_cord')
+
+setwd('Y:/PD/spinal_cord/levine_new/')
+
 # Load in custom functions:
 source('levine_new/scripts/brainstem_celltype/functions.R')
-
 
 
 #### performing integration ####
 
 # loading in the saved file
 
-sc_object <- readRDS('levine_new/excit_sc.rds')
+sc_object <- readRDS('excit_sc.rds')
 DefaultAssay(sc_object)<-'raw'
-bs_object <- readRDS('levine_new/excit_bs.rds')
+bs_object <- readRDS('excit_bs.rds')
 
 
 
@@ -66,15 +62,13 @@ sc_object <- subset(sc_object,
 bs_object<-NormalizeData(bs_object)
 bs_object<-FindVariableFeatures(bs_object, selection.method = "vst", nfeatures = 2000)
 
+sc_object<-NormalizeData(sc_object)
+sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
+
 
 obj.list <- list()
 obj.list[["brainstem"]] <- bs_object
 obj.list[["spinal_cord"]] <- sc_object
-
-
-# sc_object<-NormalizeData(sc_object)
-# sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
-
 
 
 features <- SelectIntegrationFeatures(object.list = obj.list, nfeatures = 2000)
@@ -91,7 +85,6 @@ combined <- IntegrateData(anchorset = anchors)
 DefaultAssay(combined) <- "integrated"
 
 
-
 combined@meta.data$final_coarse_types[is.na(combined@meta.data$final_coarse_types)]<-"Brainstem Cells"
 combined@meta.data$final_cluster_assignment[is.na(combined@meta.data$final_cluster_assignment)]<-"Brainstem Cells"
 
@@ -106,15 +99,14 @@ metadata.df$old.ident[is.na(metadata.df$old.ident)]<-"Spinalcord Cells"
 combined@meta.data<-metadata.df
 
 
-saveRDS(combined, file = 'levine_new/excit_integrate1_raw.rds')
+saveRDS(combined, file = 'excit_integrate1_raw.rds')
 
 
 combined_excit<-combined
 
 
-
 #### Run the standard workflow for visualization and clustering ####
-combined_excit<- readRDS('levine_new/excit_integrate1_raw.rds')
+combined_excit<- readRDS('excit_integrate1_raw.rds')
 
 DefaultAssay(combined_excit) <- "integrated"
 
@@ -123,18 +115,14 @@ combined_excit <- RunPCA(combined_excit, verbose = FALSE)
 
 ElbowPlot(combined_excit, ndims = 50)
 
-combined_excit <- RunUMAP(combined_excit, reduction = "pca", dims = 1:40)
-combined_excit <- FindNeighbors(combined_excit, reduction = "pca", dims = 1:40)
+combined_excit <- RunUMAP(combined_excit, reduction = "pca", dims = 1:50)
+combined_excit <- FindNeighbors(combined_excit, reduction = "pca", dims = 1:50)
 combined_excit <- FindClusters(combined_excit, resolution = 5)
 
 # Visualization
 
 p1 <- DimPlot(combined_excit, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE) 
 p1
-
-
-
-
 
 
 # combining the metadata fields of predicted.id and Final.clusters so that one can use it 
@@ -157,8 +145,6 @@ combined_excit@meta.data<-select.df
 DimPlot(combined_excit, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE, group.by = 'final_cluster_assignment') 
 
 
-saveRDS(combined_excit, file = 'levine_new/excit_integrate1_clustered_raw.rds')
+saveRDS(combined_excit, file = 'excit_integrate1_clustered_raw.rds')
 
-combined_excit<-readRDS('levine_new/excit_integrate1_clustered_raw.rds')
-combined_excit1<-readRDS('levine_new/excit_integrate1_clustered.rds')
-
+#########################################################################
