@@ -13,12 +13,9 @@ library(ggplot2)
 library(Polychrome)
 
 
-# inside system
-setwd('D:/Presh/h5d_dataset/')
-# inside drive
+
 setwd('Y:/PD/spinal_cord/')
-# on the outside drive
-setwd('U:/eng_research_economo/PD/spinal_cord')
+
 # Load in custom functions:
 source('levine_new/scripts/brainstem_celltype/functions.R')
 
@@ -30,7 +27,6 @@ source('levine_new/scripts/brainstem_celltype/functions.R')
 sc_object <- readRDS('levine_new/inhib_sc.rds')
 DefaultAssay(sc_object)<-'raw'
 bs_object <- readRDS('levine_new/inhib_bs.rds')
-
 
 
 
@@ -70,8 +66,8 @@ obj.list[["spinal_cord"]] <- sc_object
 bs_object<-NormalizeData(bs_object)
 bs_object<-FindVariableFeatures(bs_object, selection.method = "vst", nfeatures = 2000)
 
-# sc_object<-NormalizeData(sc_object)
-# sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
+sc_object<-NormalizeData(sc_object)
+sc_object<-FindVariableFeatures(sc_object, selection.method = "vst", nfeatures = 2000)
 
 
 features <- SelectIntegrationFeatures(object.list = obj.list, nfeatures = 2000)
@@ -85,7 +81,6 @@ anchors <- FindIntegrationAnchors(object.list = obj.list, anchor.features = feat
 
 combined <- IntegrateData(anchorset = anchors)
 DefaultAssay(combined) <- "integrated"
-
 
 
 
@@ -120,16 +115,14 @@ combined_inhib <- RunPCA(combined_inhib, verbose = FALSE)
 
 ElbowPlot(combined_inhib, ndims = 50)
 
-combined_inhib <- RunUMAP(combined_inhib, reduction = "pca", dims = 1:40)
-combined_inhib <- FindNeighbors(combined_inhib, reduction = "pca", dims = 1:40)
+combined_inhib <- RunUMAP(combined_inhib, reduction = "pca", dims = 1:50)
+combined_inhib <- FindNeighbors(combined_inhib, reduction = "pca", dims = 1:50)
 combined_inhib <- FindClusters(combined_inhib, resolution = 5)
 
 # Visualization
 
-p1 <- DimPlot(combined_inhib, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE, group.by = 'final_cluster_assignment') 
+p1 <- DimPlot(combined_inhib, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE) 
 p1
-
-
 
 
 # combining the metadata fields of predicted.id and Final.clusters so that one can use it 
@@ -145,9 +138,12 @@ for(i in 1:length(select.df$final_cluster_assignment)) {
 }
 
 
-
 # put select.df back into object
 combined_inhib@meta.data<-select.df
 
+
+DimPlot(combined_inhib, reduction = "umap", repel = TRUE,shuffle = TRUE, label = TRUE, group.by = 'final_cluster_assignment') 
+
 saveRDS(combined_inhib, file = 'levine_new/inhib_integrate1_clustered_raw.rds')
-combined_inhib1<-readRDS('levine_new/inhib_integrate1_clustered.rds')
+
+#########################################################################
