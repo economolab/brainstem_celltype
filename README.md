@@ -1,5 +1,4 @@
 # brainstem_celltype
-# brainstem_celltype
 Understanding the molecular similarities between brainstem and spinal motor circuits will be key to understanding the cellular features that define motor circuits in the brainstem. By integrating scRNA-seq datasets of the mouse brainstem and spinal cord, we try to determine molecular similarities at both the population level and at the level of individual cell types. This repository contains codes for processing scRNA-seq data of brainstem obtained from mice (in-house). We make use of the Russ et al (2021) scRNA-seq spinal cord dataset to learn about the different cell types.
 
 The different scripts used are:
