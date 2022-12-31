@@ -13,21 +13,14 @@ library(ggplot2)
 library(Polychrome)
 library(formattable)
 
-# inside system
-setwd('D:/Presh/h5d_dataset/')
-# inside drive
+
 setwd('Y:/PD/spinal_cord/')
-# on the outside drive
-setwd('U:/eng_research_economo/PD/spinal_cord/levine/')
+
 
 # load in functions file
-# inside drive
 source('Y:/PD/spinal_cord/levine_new/scripts/brainstem_celltype/functions.R')
 
-
-
 # source the tree seurat functions
-# inside drive
 source('Y:/PD/spinal_cord/levine_new/scripts/brainstem_celltype/tree_functions_seurat.R')
 
 
@@ -36,7 +29,7 @@ get.markers<- function(node){
   leaves<-subset(tree.df, node %in% leaves, select = c('cluster'))$cluster
   node.markers<-FindMarkers(combined_inhib,          # no need of max cells ident, max is only 1000 in some types
                             ident.1 = leaves, 
-                            min.pct = 0.6,
+                            min.pct = 0.4,
                             test.use = 'wilcox',
                             min.diff.pct = 0.3, 
                             only.pos = TRUE)
@@ -47,6 +40,7 @@ get.markers<- function(node){
   return(node.markers.top10table)
   
 }
+
 get.leaves.plot<-function(node){
   leaves<-GetLeavesOnly(combined_inhib, tree, node)
   leaves<-subset(tree.df, node %in% leaves, select = c('cluster'))$cluster
@@ -58,7 +52,7 @@ get.leaves.plot<-function(node){
 #########################################################################
 
 # Reading in the inhib clustered dataset 
-combined_inhib<-readRDS('levine_new/inhib_integrate1_clustered.rds')
+combined_inhib<-readRDS('levine_new/inhib_integrate1_clustered_raw.rds')
 
 combined_inhib<-SetIdent(combined_inhib, value = combined_inhib[['seurat_clusters']])
 
@@ -76,7 +70,7 @@ max2 <- df.pct %>%
   slice(1:2) %>% data.frame()
 
 new_label<-c()
-for (i in 0:((nrow(max2)-2)/2)){
+for (i in 0:((nrow(max2)-1)/2)){
   subset.df<- subset(max2, seurat_clusters==i)
   val<- as.numeric(subset.df$freq) > 0.8
   if (unique(val) == FALSE){
@@ -108,24 +102,33 @@ combined_inhib[['seurat_clust_type']]<- seurat_clust_type
 #set it as an active ident in the object
 combined_inhib<-SetIdent(combined_inhib, value = combined_inhib[['seurat_clust_type']])
 
-# combined_inhib<-SetIdent(combined_inhib, value = combined_inhib[['seurat_clusters']])
 
 ######### Hierarchial clustering #########
 combined_inhib<-BuildClusterTree(combined_inhib,assay="integrated", dims = 1:40)
 PlotClusterTree(combined_inhib, direction = "downwards")
+
+# saving the file
+saveRDS(combined_inhib,'levine_new/inhib_integrate1_clustered.rds')
+# reading in the file if it is already created 
+combined_inhib<- readRDS('levine_new/inhib_integrate1_clustered.rds')
+
 
 tree <- Tool(combined_inhib, slot = 'BuildClusterTree') # This extracts the phylo tree from our object
 
 tree.df<-data.frame(node=c(1:length(tree[['tip.label']])), cluster=tree[["tip.label"]])
 
 
-######### Group 1 -  node 56  #########
+# Giving an example of how to utilize the functions 
+# node 59
 
-top10markers.65<-get.markers(65)
+top10markers.59<-get.markers(59)
 
-cells.int<-get.leaves.plot(56)
-p1<-DimPlot(combined_inhib, reduction = "umap", label = TRUE, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
+cells.int<-get.leaves.plot(59)
+p1<-DimPlot(combined_inhib, reduction = "umap", label = F, repel = TRUE,shuffle = TRUE, cells.highlight = cells.int, group.by = 'seurat_clust_type') + NoLegend()
 
 
-p2<-FeaturePlot(combined_inhib, features = c('Reln'), cols = c('lightgreen', 'red'), label = T, keep.scale = 'all')
+p2<-FeaturePlot(combined_inhib, features = c('Adarb2'), cols = c('lightgreen', 'red'), label = F, keep.scale = 'all')
 p1+p2
+
+# look at script for the entire analysis of threshold 10% for excitatory dataset named 'excit_marker_analysis_thresh10.R'
+
