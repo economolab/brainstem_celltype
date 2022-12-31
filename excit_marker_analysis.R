@@ -134,9 +134,6 @@ p1<-DimPlot(combined_excit, reduction = "umap", label = TRUE, repel = TRUE,shuff
 p2<-FeaturePlot(combined_excit, features = c('Pde11a'), cols = c('lightgreen', 'red'), label = T)
 p1+p2
 
-# look at script for the entire analysis of threshold 10% for excitatory dataset named 'excit_marker_analysis_thresh10.R'
-
-
 
 
 

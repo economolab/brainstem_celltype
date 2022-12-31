@@ -130,5 +130,3 @@ p1<-DimPlot(combined_inhib, reduction = "umap", label = F, repel = TRUE,shuffle 
 p2<-FeaturePlot(combined_inhib, features = c('Adarb2'), cols = c('lightgreen', 'red'), label = F, keep.scale = 'all')
 p1+p2
 
-# look at script for the entire analysis of threshold 10% for excitatory dataset named 'excit_marker_analysis_thresh10.R'
-
