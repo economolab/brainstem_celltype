@@ -101,7 +101,7 @@ o2 = seriate(dist(t(combined.norm)), method = "GW")
 col_1<-get_order(o2)
 
 # by default, hclust is applied 
-p0<-Heatmap(combined.norm, cluster_rows = F, col = col_fun, top_annotation = ha, name = 'combined', column_order = col_1)
+p0<-Heatmap(combined.norm, cluster_rows = F, col = col_fun, top_annotation = ha, name = 'combined', column_order = col_1, cluster_columns = as.dendrogram(o2[[1]]))
 p0
 
 
@@ -131,5 +131,4 @@ colors.needed<- CustomColor(combined, cluster.by = 'final_cluster_assignment', s
 p2<- DimPlot(combined, group.by = 'final_cluster_assignment',label = T, cols = colors.needed, label.size = 3.5, repel = TRUE,shuffle = TRUE)
 
 p1+p2
-
 
